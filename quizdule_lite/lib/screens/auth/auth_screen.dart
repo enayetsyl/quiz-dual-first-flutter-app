@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 /// Auth Screen - Login and Register UI
 /// 
@@ -117,10 +118,9 @@ class AuthScreen extends StatelessWidget {
               ElevatedButton(
                 onPressed: () {
                   // TODO: Implement login logic in Phase 6
-                  // MERN Equivalent: handleLogin() function
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Login clicked - Coming in Phase 6!')),
-                  );
+                  // For now, navigate to dashboard to test routing
+                  // MERN Equivalent: navigate('/dashboard')
+                  context.go('/dashboard');
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepPurple,
@@ -143,10 +143,9 @@ class AuthScreen extends StatelessWidget {
               OutlinedButton(
                 onPressed: () {
                   // TODO: Implement register logic in Phase 6
-                  // MERN Equivalent: handleRegister() function
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Register clicked - Coming in Phase 6!')),
-                  );
+                  // For now, navigate to dashboard to test routing
+                  // MERN Equivalent: navigate('/dashboard')
+                  context.go('/dashboard');
                 },
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.deepPurple,
@@ -160,6 +159,61 @@ class AuthScreen extends StatelessWidget {
                   'Register',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
+              ),
+              
+              const SizedBox(height: 40),
+              
+              // Navigation Test Section (for Phase 3)
+              const Divider(),
+              const SizedBox(height: 16),
+              const Text(
+                'Navigation Test (Phase 3)',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              
+              // Quick Navigation Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Test Dashboard
+                  TextButton(
+                    onPressed: () {
+                      // MERN Equivalent: navigate('/dashboard')
+                      context.go('/dashboard');
+                    },
+                    child: const Text('Dashboard'),
+                  ),
+                  // Test Lobby
+                  TextButton(
+                    onPressed: () {
+                      // MERN Equivalent: navigate('/lobby')
+                      context.go('/lobby');
+                    },
+                    child: const Text('Lobby'),
+                  ),
+                  // Test Game
+                  TextButton(
+                    onPressed: () {
+                      // MERN Equivalent: navigate('/game')
+                      context.go('/game');
+                    },
+                    child: const Text('Game'),
+                  ),
+                  // Test Game Over
+                  TextButton(
+                    onPressed: () {
+                      // MERN Equivalent: navigate('/gameover')
+                      context.go('/gameover');
+                    },
+                    child: const Text('GameOver'),
+                  ),
+                ],
               ),
             ],
           ),

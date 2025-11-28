@@ -1,0 +1,26 @@
+Phase 3: Navigation with go_router
+
+Implement navigation system using go_router, equivalent to React Router in MERN stack.
+
+Changes:
+- Add go_router package to pubspec.yaml
+- Create config/routes.dart with GoRouter configuration
+- Create 5 screen files: dashboard, lobby, game, gameover (plus existing auth)
+- Update main.dart to use MaterialApp.router with routerConfig
+- Add navigation buttons to auth_screen for testing
+- Implement all routes: /auth, /dashboard, /lobby, /game, /gameover
+- Add 404 error handler for unknown routes
+
+MERN Equivalent:
+- React Router's <BrowserRouter> → GoRouter
+- <Route> components → GoRoute definitions
+- useNavigate() hook → context.go() / context.push() / context.pop()
+- Declarative routing with programmatic navigation
+
+Navigation methods:
+- context.go('/path') - Replace current route (like navigate with replace: true)
+- context.push('/path') - Push to navigation stack (like navigate)
+- context.pop() - Go back (like navigate(-1))
+
+All screens now connected with working navigation. Ready for Phase 4: State Management.
+

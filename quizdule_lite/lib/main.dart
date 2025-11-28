@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/auth/auth_screen.dart';
+import 'config/routes.dart';
 
 /// Main entry point of the app
 /// 
@@ -14,23 +14,35 @@ void main() {
 /// 
 /// MERN Equivalent: App.js or App.tsx
 /// This is like your main App component that wraps everything
+/// 
+/// In React Router:
+/// ```jsx
+/// <BrowserRouter>
+///   <Routes>
+///     <Route path="/" element={<AuthScreen />} />
+///   </Routes>
+/// </BrowserRouter>
+/// ```
+/// 
+/// In Flutter with go_router:
+/// MaterialApp.router uses the routerConfig to handle all routing
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // MaterialApp = The root app widget that provides Material Design theming
-    // MERN Equivalent: <BrowserRouter> or <ThemeProvider> wrapper
-    return MaterialApp(
+    // MaterialApp.router = MaterialApp with go_router integration
+    // MERN Equivalent: <BrowserRouter> wrapper around your app
+    return MaterialApp.router(
       title: 'QuizDuel Lite',
       debugShowCheckedModeBanner: false, // Removes the debug banner
       theme: ThemeData(
         primarySwatch: Colors.deepPurple,
         useMaterial3: true,
       ),
-      // home = The initial route/screen
-      // MERN Equivalent: <Route path="/" element={<AuthScreen />} />
-      home: const AuthScreen(),
+      // routerConfig = The router configuration (like <Routes> in React Router)
+      // MERN Equivalent: All your <Route> components inside <Routes>
+      routerConfig: appRouter,
     );
   }
 }
