@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/firestore_service.dart';
@@ -83,8 +84,25 @@ class MatchNotifier extends Notifier<MatchState> {
   // MERN Equivalent: Your API service that makes HTTP requests
   final FirestoreService _firestoreService = FirestoreService();
 
+  // Stream subscription for real-time match updates
+  // MERN Equivalent: Socket.io subscription
+  // ```javascript
+  // useEffect(() => {
+  //   const subscription = socket.on('matchUpdate', handler);
+  //   return () => subscription.off('matchUpdate');
+  // }, [matchId]);
+  // ```
+  StreamSubscription<MatchModel?>? _matchStreamSubscription;
+
   @override
   MatchState build() {
+    // Clean up stream subscription when provider is disposed
+    // MERN Equivalent: useEffect cleanup function
+    ref.onDispose(() {
+      _matchStreamSubscription?.cancel();
+      _matchStreamSubscription = null;
+    });
+    
     return const MatchState();
   }
 
@@ -162,6 +180,10 @@ class MatchNotifier extends Notifier<MatchState> {
           if (match.player2 != null) match.player2!.id: match.player2!.score,
         },
       );
+
+      // Start listening to match changes in real-time
+      // MERN Equivalent: socket.emit('joinRoom', matchId) and socket.on('matchUpdate', ...)
+      startListeningToMatch(match.matchId);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -208,6 +230,10 @@ class MatchNotifier extends Notifier<MatchState> {
           if (match.player2 != null) match.player2!.id: match.player2!.score,
         },
       );
+
+      // Start listening to match changes in real-time
+      // MERN Equivalent: socket.emit('joinRoom', matchId) and socket.on('matchUpdate', ...)
+      startListeningToMatch(match.matchId);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -251,6 +277,10 @@ class MatchNotifier extends Notifier<MatchState> {
           if (match.player2 != null) match.player2!.id: match.player2!.score,
         },
       );
+
+      // Start listening to match changes in real-time
+      // MERN Equivalent: socket.emit('joinRoom', matchId) and socket.on('matchUpdate', ...)
+      startListeningToMatch(match.matchId);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -287,7 +317,95 @@ class MatchNotifier extends Notifier<MatchState> {
   /// 
   /// MERN Equivalent: dispatch({ type: 'RESET_MATCH' })
   void resetMatch() {
+    // Cancel stream subscription when resetting
+    // MERN Equivalent: socket.off('matchUpdate')
+    _matchStreamSubscription?.cancel();
+    _matchStreamSubscription = null;
+    
     state = const MatchState();
+  }
+
+  /// Start listening to match document changes in real-time
+  /// 
+  /// MERN Equivalent: Setting up Socket.io listener
+  /// ```javascript
+  /// useEffect(() => {
+  ///   if (!matchId) return;
+  ///   
+  ///   socket.emit('joinRoom', matchId);
+  ///   socket.on('matchUpdate', (data) => {
+  ///     dispatch({ type: 'UPDATE_MATCH', payload: data });
+  ///   });
+  ///   
+  ///   return () => {
+  ///     socket.off('matchUpdate');
+  ///     socket.emit('leaveRoom', matchId);
+  ///   };
+  /// }, [matchId]);
+  /// ```
+  /// 
+  /// In Flutter with Firestore:
+  /// - No need to emit 'joinRoom' - just listen to the document
+  /// - Firestore automatically syncs changes
+  /// - No need to emit 'leaveRoom' - just cancel the subscription
+  void startListeningToMatch(String matchId) {
+    // Cancel existing subscription if any
+    // MERN Equivalent: socket.off('matchUpdate') before setting up new listener
+    _matchStreamSubscription?.cancel();
+
+    // Start listening to match document stream
+    // MERN Equivalent: socket.on('matchUpdate', handler)
+    _matchStreamSubscription = _firestoreService.watchMatch(matchId).listen(
+      (match) {
+        // This fires whenever the match document changes in Firestore!
+        // MERN Equivalent: socket.on('matchUpdate', (data) => { ... })
+        
+        if (match == null) {
+          // Match was deleted
+          state = state.copyWith(
+            error: 'Match was deleted',
+            isLoading: false,
+          );
+          return;
+        }
+
+        // Update state with latest match data
+        // MERN Equivalent: dispatch({ type: 'UPDATE_MATCH', payload: match })
+        state = state.copyWith(
+          matchId: match.matchId,
+          status: match.status,
+          player1Id: match.player1?.id,
+          player2Id: match.player2?.id,
+          currentQuestionIndex: match.currentQuestionIndex,
+          scores: {
+            if (match.player1 != null) match.player1!.id: match.player1!.score,
+            if (match.player2 != null) match.player2!.id: match.player2!.score,
+          },
+          isLoading: false,
+          error: null,
+        );
+      },
+      onError: (error) {
+        // Handle stream errors
+        // MERN Equivalent: socket.on('error', handler)
+        print('❌ Error in match stream: $error');
+        state = state.copyWith(
+          error: error.toString(),
+          isLoading: false,
+        );
+      },
+    );
+
+    print('✅ Started listening to match: $matchId');
+  }
+
+  /// Stop listening to match document changes
+  /// 
+  /// MERN Equivalent: socket.off('matchUpdate')
+  void stopListeningToMatch() {
+    _matchStreamSubscription?.cancel();
+    _matchStreamSubscription = null;
+    print('✅ Stopped listening to match stream');
   }
 }
 

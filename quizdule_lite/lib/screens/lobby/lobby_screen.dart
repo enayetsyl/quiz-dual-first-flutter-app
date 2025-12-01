@@ -28,10 +28,34 @@ class LobbyScreen extends ConsumerWidget {
 
     // Load match data if we have a matchId but no data
     // MERN Equivalent: useEffect(() => { if (matchId) loadMatch(matchId); }, [matchId])
+    // Note: After loading, the stream will automatically keep us updated!
     if (matchState.matchId != null && matchState.status == 'idle') {
-      // Load match from Firestore
+      // Load match from Firestore (this will also start the stream)
       WidgetsBinding.instance.addPostFrameCallback((_) {
         matchNotifier.loadMatch(matchState.matchId!);
+      });
+    }
+
+    // Automatically navigate to game when both players join
+    // MERN Equivalent: useEffect(() => {
+    //   if (matchState.status === 'playing' && matchState.player2) {
+    //     navigate('/game');
+    //   }
+    // }, [matchState.status, matchState.player2]);
+    // 
+    // In Flutter, we use WidgetsBinding.instance.addPostFrameCallback
+    // to avoid navigation during build
+    if (matchState.matchId != null &&
+        matchState.status == 'playing' &&
+        matchState.player1Id != null &&
+        matchState.player2Id != null) {
+      // Both players joined! Navigate to game
+      // This will fire automatically when the stream detects player 2 joined
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Only navigate if we're still on the lobby screen
+        if (context.mounted) {
+          context.go('/game');
+        }
       });
     }
 

@@ -259,5 +259,53 @@ class FirestoreService {
       rethrow;
     }
   }
+
+  /// Listen to match document changes in real-time
+  /// 
+  /// MERN Equivalent: Socket.io listener
+  /// ```javascript
+  /// // Socket.io (Node.js + Client)
+  /// socket.on('matchUpdate', (data) => {
+  ///   // Handle update
+  ///   setMatch(data);
+  /// });
+  /// 
+  /// // On server, you'd emit:
+  /// socket.emit('matchUpdate', matchData);
+  /// ```
+  /// 
+  /// In Firestore, we use snapshots() which automatically listens to changes!
+  /// No backend code needed - Firestore handles the real-time sync.
+  /// 
+  /// Key differences:
+  /// - Socket.io: Requires server to emit events manually
+  /// - Firestore: Automatically syncs when document changes (anywhere!)
+  /// - Socket.io: Need to handle reconnection manually
+  /// - Firestore: Automatically reconnects
+  /// - Socket.io: Need to manage socket connections
+  /// - Firestore: Just listen to the stream, dispose when done
+  Stream<MatchModel?> watchMatch(String matchId) {
+    // Return a stream that emits MatchModel whenever the document changes
+    // MERN Equivalent: socket.on('matchUpdate', handler)
+    return _firestore
+        .collection('matches')
+        .doc(matchId)
+        .snapshots() // This creates a stream that fires on EVERY document change!
+        .map((snapshot) {
+      // Convert Firestore snapshot to MatchModel
+      // MERN Equivalent: Processing the data from socket event
+      if (!snapshot.exists) {
+        print('⚠️ Match document deleted: $matchId');
+        return null;
+      }
+      
+      try {
+        return MatchModel.fromFirestore(snapshot);
+      } catch (e) {
+        print('❌ Error parsing match from stream: $e');
+        return null;
+      }
+    });
+  }
 }
 
