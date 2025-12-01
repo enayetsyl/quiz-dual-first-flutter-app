@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/match_provider.dart';
 
 /// Dashboard Screen - Main menu after login
 /// 
@@ -23,6 +24,11 @@ class DashboardScreen extends ConsumerWidget {
     // MERN Equivalent: const { user, logout } = useContext(AuthContext);
     final authState = ref.watch(authProvider);
     final authNotifier = ref.read(authProvider.notifier);
+    
+    // Get match state and notifier
+    // MERN Equivalent: const { matchState, createMatch, joinMatch } = useContext(MatchContext);
+    final matchState = ref.watch(matchProvider);
+    final matchNotifier = ref.read(matchProvider.notifier);
     
     return Scaffold(
       appBar: AppBar(
@@ -92,12 +98,48 @@ class DashboardScreen extends ConsumerWidget {
               const SizedBox(height: 40),
               
               // Create Room Button
+              // MERN Equivalent: <button onClick={handleCreateRoom}>Create Room</button>
               ElevatedButton(
-                onPressed: () {
-                  // Navigate to lobby screen
-                  // MERN Equivalent: navigate('/lobby')
-                  context.go('/lobby');
-                },
+                onPressed: matchState.isLoading
+                    ? null
+                    : () async {
+                        // Get current user info
+                        if (authState.userId == null || authState.email == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please login first'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        // Create match in Firestore
+                        // MERN Equivalent: await createMatch(userId, userEmail)
+                        await matchNotifier.createMatch(
+                          authState.userId!,
+                          authState.email!,
+                        );
+
+                        // Check if there was an error
+                        if (matchState.error != null) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error: ${matchState.error}'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                          return;
+                        }
+
+                        // Navigate to lobby screen
+                        // MERN Equivalent: navigate('/lobby')
+                        if (context.mounted) {
+                          context.go('/lobby');
+                        }
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepPurple,
                   foregroundColor: Colors.white,
@@ -109,23 +151,33 @@ class DashboardScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Create Room',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                child: matchState.isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text(
+                        'Create Room',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
               ),
               
               const SizedBox(height: 16),
               
-              // Join Room Button (placeholder for now)
+              // Join Room Button
+              // MERN Equivalent: <button onClick={showJoinRoomDialog}>Join Room</button>
               OutlinedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Join Room - Coming in Phase 7!'),
-                    ),
-                  );
-                },
+                onPressed: matchState.isLoading
+                    ? null
+                    : () {
+                        // Show dialog to enter room ID
+                        // MERN Equivalent: const roomId = prompt('Enter Room ID');
+                        _showJoinRoomDialog(context, ref);
+                      },
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.deepPurple,
                   padding: const EdgeInsets.symmetric(
@@ -177,6 +229,117 @@ class DashboardScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  /// Show dialog to join a room
+  /// 
+  /// MERN Equivalent: const roomId = prompt('Enter Room ID');
+  /// In Flutter, we use showDialog to show a modal dialog
+  void _showJoinRoomDialog(BuildContext context, WidgetRef ref) {
+    final TextEditingController roomIdController = TextEditingController();
+    final authState = ref.read(authProvider);
+    final matchNotifier = ref.read(matchProvider.notifier);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Join Room'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Enter the Room ID to join:'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: roomIdController,
+                decoration: const InputDecoration(
+                  labelText: 'Room ID',
+                  hintText: 'ABC123',
+                  border: OutlineInputBorder(),
+                ),
+                textCapitalization: TextCapitalization.characters,
+                maxLength: 6,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final roomId = roomIdController.text.trim().toUpperCase();
+
+                if (roomId.isEmpty || roomId.length != 6) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter a valid 6-character Room ID'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                // Close dialog first
+                Navigator.of(dialogContext).pop();
+
+                // Get current user info
+                if (authState.userId == null || authState.email == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please login first'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                // Join match in Firestore
+                // MERN Equivalent: await joinMatch(roomId, userId, userEmail)
+                await matchNotifier.joinMatch(
+                  roomId,
+                  authState.userId!,
+                  authState.email!,
+                );
+
+                // Check if there was an error
+                final matchState = ref.read(matchProvider);
+                if (matchState.error != null) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: ${matchState.error}'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                  return;
+                }
+
+                // Navigate to lobby screen
+                // MERN Equivalent: navigate('/lobby')
+                if (context.mounted) {
+                  context.go('/lobby');
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Join'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

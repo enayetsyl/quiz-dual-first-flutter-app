@@ -1,4 +1,7 @@
+import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/firestore_service.dart';
+import '../models/match_model.dart';
 
 /// Match State Model
 /// 
@@ -76,33 +79,88 @@ class MatchState {
 /// };
 /// ```
 class MatchNotifier extends Notifier<MatchState> {
+  // Firestore service instance
+  // MERN Equivalent: Your API service that makes HTTP requests
+  final FirestoreService _firestoreService = FirestoreService();
+
   @override
   MatchState build() {
     return const MatchState();
   }
 
+  /// Generate a random match ID (6 characters, alphanumeric)
+  /// 
+  /// MERN Equivalent: Generating a unique room code
+  /// ```javascript
+  /// const generateRoomId = () => {
+  ///   return Math.random().toString(36).substring(2, 8).toUpperCase();
+  /// };
+  /// ```
+  String _generateMatchId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final random = Random();
+    return String.fromCharCodes(
+      Iterable.generate(
+        6,
+        (_) => chars.codeUnitAt(random.nextInt(chars.length)),
+      ),
+    );
+  }
+
   /// Create a new match
   /// 
-  /// MERN Equivalent: dispatch({ type: 'CREATE_MATCH', payload: matchId })
-  /// This will be implemented in Phase 7 with Firestore
-  Future<void> createMatch(String playerId) async {
+  /// MERN Equivalent:
+  /// ```javascript
+  /// const createMatch = async (playerId, playerEmail) => {
+  ///   const matchId = generateRoomId();
+  ///   const response = await axios.post('/api/matches', {
+  ///     matchId,
+  ///     player1: { id: playerId, email: playerEmail },
+  ///   });
+  ///   dispatch({ type: 'CREATE_MATCH', payload: response.data });
+  /// };
+  /// ```
+  /// 
+  /// In Flutter, we call Firestore service directly (no Express server needed!)
+  Future<void> createMatch(String playerId, String playerEmail) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      // TODO: Implement Firestore match creation in Phase 7
-      // For now, simulate creating a match
-      await Future.delayed(const Duration(seconds: 1));
+      // Generate a unique match ID
+      // MERN Equivalent: const matchId = generateRoomId();
+      String matchId;
+      
+      // Keep generating until we find a unique ID
+      // MERN Equivalent: Check if room exists before creating
+      do {
+        matchId = _generateMatchId();
+        final existingMatch = await _firestoreService.getMatch(matchId);
+        // If match doesn't exist, we found a unique ID
+        if (existingMatch == null) {
+          break;
+        }
+      } while (true);
 
-      // Generate a demo match ID
-      final matchId = 'match_${DateTime.now().millisecondsSinceEpoch}';
-
-      // MERN Equivalent: dispatch({ type: 'CREATE_MATCH', payload: matchId })
-      state = state.copyWith(
+      // Create match in Firestore
+      // MERN Equivalent: await axios.post('/api/matches', { matchId, player1: {...} })
+      final match = await _firestoreService.createMatch(
         matchId: matchId,
-        status: 'waiting',
-        player1Id: playerId,
+        playerId: playerId,
+        playerEmail: playerEmail,
+      );
+
+      // Update state with created match
+      // MERN Equivalent: dispatch({ type: 'CREATE_MATCH', payload: match })
+      state = state.copyWith(
+        matchId: match.matchId,
+        status: match.status,
+        player1Id: match.player1?.id,
+        player2Id: match.player2?.id,
         isLoading: false,
-        scores: {playerId: 0},
+        scores: {
+          if (match.player1 != null) match.player1!.id: match.player1!.score,
+          if (match.player2 != null) match.player2!.id: match.player2!.score,
+        },
       );
     } catch (e) {
       state = state.copyWith(
@@ -114,24 +172,83 @@ class MatchNotifier extends Notifier<MatchState> {
 
   /// Join an existing match
   /// 
-  /// MERN Equivalent: dispatch({ type: 'JOIN_MATCH', payload: { matchId, playerId } })
-  /// This will be implemented in Phase 7 with Firestore
-  Future<void> joinMatch(String matchId, String playerId) async {
+  /// MERN Equivalent:
+  /// ```javascript
+  /// const joinMatch = async (matchId, playerId, playerEmail) => {
+  ///   const response = await axios.patch(`/api/matches/${matchId}/join`, {
+  ///     player2: { id: playerId, email: playerEmail },
+  ///   });
+  ///   dispatch({ type: 'JOIN_MATCH', payload: response.data });
+  /// };
+  /// ```
+  /// 
+  /// In Flutter, we call Firestore service directly
+  Future<void> joinMatch(String matchId, String playerId, String playerEmail) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      // TODO: Implement Firestore match join in Phase 7
-      await Future.delayed(const Duration(seconds: 1));
-
-      // MERN Equivalent: dispatch({ type: 'JOIN_MATCH', payload: { matchId, playerId } })
-      state = state.copyWith(
+      // Join match in Firestore
+      // MERN Equivalent: await axios.patch(`/api/matches/${matchId}/join`, { player2: {...} })
+      final match = await _firestoreService.joinMatch(
         matchId: matchId,
-        status: 'playing',
-        player2Id: playerId,
+        playerId: playerId,
+        playerEmail: playerEmail,
+      );
+
+      // Update state with joined match
+      // MERN Equivalent: dispatch({ type: 'JOIN_MATCH', payload: match })
+      state = state.copyWith(
+        matchId: match.matchId,
+        status: match.status,
+        player1Id: match.player1?.id,
+        player2Id: match.player2?.id,
         isLoading: false,
         scores: {
-          state.player1Id ?? 'player1': 0,
-          playerId: 0,
+          if (match.player1 != null) match.player1!.id: match.player1!.score,
+          if (match.player2 != null) match.player2!.id: match.player2!.score,
+        },
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+    }
+  }
+
+  /// Load match from Firestore
+  /// 
+  /// MERN Equivalent:
+  /// ```javascript
+  /// const loadMatch = async (matchId) => {
+  ///   const response = await axios.get(`/api/matches/${matchId}`);
+  ///   dispatch({ type: 'LOAD_MATCH', payload: response.data });
+  /// };
+  /// ```
+  Future<void> loadMatch(String matchId) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      // Get match from Firestore
+      // MERN Equivalent: await axios.get(`/api/matches/${matchId}`)
+      final match = await _firestoreService.getMatch(matchId);
+
+      if (match == null) {
+        throw Exception('Match not found');
+      }
+
+      // Update state with loaded match
+      // MERN Equivalent: dispatch({ type: 'LOAD_MATCH', payload: match })
+      state = state.copyWith(
+        matchId: match.matchId,
+        status: match.status,
+        player1Id: match.player1?.id,
+        player2Id: match.player2?.id,
+        currentQuestionIndex: match.currentQuestionIndex,
+        isLoading: false,
+        scores: {
+          if (match.player1 != null) match.player1!.id: match.player1!.score,
+          if (match.player2 != null) match.player2!.id: match.player2!.score,
         },
       );
     } catch (e) {
