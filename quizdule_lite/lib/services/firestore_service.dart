@@ -240,6 +240,59 @@ class FirestoreService {
     }
   }
 
+  /// Submit an answer for a player
+  ///
+  /// MERN Equivalent:
+  /// ```javascript
+  /// // PATCH /api/matches/:matchId/answer
+  /// const match = await Match.findById(matchId);
+  /// const playerKey = match.player1.id === playerId ? 'player1' : 'player2';
+  /// match[playerKey].hasAnswered = true;
+  /// if (isCorrect) match[playerKey].score += 1;
+  /// await match.save();
+  /// ```
+  ///
+  /// In Firestore we:
+  /// - Figure out whether this user is player_1 or player_2
+  /// - Mark `has_answered: true`
+  /// - Optionally increment `score` if answer is correct
+  Future<void> submitAnswer({
+    required String matchId,
+    required String playerId,
+    required bool isCorrect,
+  }) async {
+    try {
+      final match = await getMatch(matchId);
+      if (match == null) {
+        throw Exception('Match not found');
+      }
+
+      // Decide which nested player field to update
+      String? playerField;
+      if (match.player1?.id == playerId) {
+        playerField = 'player_1';
+      } else if (match.player2?.id == playerId) {
+        playerField = 'player_2';
+      } else {
+        throw Exception('Player not part of this match');
+      }
+
+      final Map<String, dynamic> updateData = {
+        '$playerField.has_answered': true,
+      };
+
+      if (isCorrect) {
+        updateData['$playerField.score'] = FieldValue.increment(1);
+      }
+
+      await updateMatch(matchId, updateData);
+      print('✅ Answer submitted for $playerId in match $matchId (correct: $isCorrect)');
+    } catch (e) {
+      print('❌ Error submitting answer: $e');
+      rethrow;
+    }
+  }
+
   /// Delete a match
   /// 
   /// MERN Equivalent:

@@ -1,16 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../providers/auth_provider.dart';
+import '../../providers/match_provider.dart';
+
 /// Game Over Screen - Shows final results
-/// 
-/// MERN Equivalent: This is like a React page component
-/// In React: const GameOver = () => { return <div>GameOver</div>; }
-/// In Flutter: class GameOverScreen extends StatelessWidget { ... }
-class GameOverScreen extends StatelessWidget {
+///
+/// MERN Equivalent: React page that reads from Auth + Match Context:
+/// ```javascript
+/// const { authState } = useContext(AuthContext);
+/// const { matchState } = useContext(MatchContext);
+/// const yourScore = matchState.scores[authState.userId];
+/// const opponentScore = ...;
+/// ```
+class GameOverScreen extends ConsumerWidget {
   const GameOverScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+    final matchState = ref.watch(matchProvider);
+
+    final userId = authState.userId;
+    final scores = matchState.scores ?? {};
+
+    int yourScore = 0;
+    int opponentScore = 0;
+
+    if (userId != null && scores.isNotEmpty) {
+      yourScore = scores[userId] ?? 0;
+
+      final opponentEntry = scores.entries.firstWhere(
+        (entry) => entry.key != userId,
+        orElse: () => const MapEntry('', 0),
+      );
+      opponentScore = opponentEntry.value;
+    }
+
+    String resultText;
+    Color resultColor;
+
+    if (yourScore > opponentScore) {
+      resultText = 'You Won! 🎉';
+      resultColor = Colors.green;
+    } else if (yourScore < opponentScore) {
+      resultText = 'You Lost 😢';
+      resultColor = Colors.redAccent;
+    } else {
+      resultText = 'It\'s a Tie 🤝';
+      resultColor = Colors.orange;
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Game Over'),
@@ -78,10 +119,10 @@ class GameOverScreen extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    const Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
+                        const Text(
                           'You',
                           style: TextStyle(
                             fontSize: 18,
@@ -90,8 +131,8 @@ class GameOverScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '3',
-                          style: TextStyle(
+                          '$yourScore',
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Colors.deepPurple,
@@ -100,10 +141,10 @@ class GameOverScreen extends StatelessWidget {
                       ],
                     ),
                     const Divider(height: 32),
-                    const Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
+                        const Text(
                           'Opponent',
                           style: TextStyle(
                             fontSize: 18,
@@ -112,8 +153,8 @@ class GameOverScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '2',
-                          style: TextStyle(
+                          '$opponentScore',
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Colors.deepPurple,
@@ -127,12 +168,12 @@ class GameOverScreen extends StatelessWidget {
               
               const SizedBox(height: 32),
               
-              const Text(
-                'You Won! 🎉',
+              Text(
+                resultText,
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.green,
+                  color: resultColor,
                 ),
                 textAlign: TextAlign.center,
               ),

@@ -84,6 +84,12 @@ class MatchNotifier extends Notifier<MatchState> {
   // MERN Equivalent: Your API service that makes HTTP requests
   final FirestoreService _firestoreService = FirestoreService();
 
+  // Total number of questions in the game.
+  //
+  // MERN Equivalent: Hardcoded constant in your game engine:
+  // const TOTAL_QUESTIONS = 3;
+  static const int _totalQuestions = 3;
+
   // Stream subscription for real-time match updates
   // MERN Equivalent: Socket.io subscription
   // ```javascript
@@ -302,15 +308,26 @@ class MatchNotifier extends Notifier<MatchState> {
   /// Submit an answer
   /// 
   /// MERN Equivalent: dispatch({ type: 'SUBMIT_ANSWER', payload: { playerId, answer } })
-  /// This will be implemented in Phase 9 with game logic
-  Future<void> submitAnswer(String playerId, String answer) async {
-    // TODO: Implement answer submission logic in Phase 9
-    // For now, just update the state
-    final currentScores = Map<String, int>.from(state.scores ?? {});
-    // Simulate correct answer (will be real logic in Phase 9)
-    currentScores[playerId] = (currentScores[playerId] ?? 0) + 1;
+  /// In Phase 9 we send the answer to Firestore instead of only local state.
+  Future<void> submitAnswer({
+    required String playerId,
+    required bool isCorrect,
+  }) async {
+    final matchId = state.matchId;
+    if (matchId == null) {
+      throw Exception('No active match to submit answer for');
+    }
 
-    state = state.copyWith(scores: currentScores);
+    try {
+      await _firestoreService.submitAnswer(
+        matchId: matchId,
+        playerId: playerId,
+        isCorrect: isCorrect,
+      );
+      // Scores + has_answered flags will be updated by the Firestore stream.
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
   }
 
   /// Reset match state
@@ -384,6 +401,43 @@ class MatchNotifier extends Notifier<MatchState> {
           isLoading: false,
           error: null,
         );
+
+        // Phase 9: Round sync logic
+        //
+        // MERN Equivalent (server-side pseudo-code):
+        // if (match.player1.hasAnswered && match.player2.hasAnswered) {
+        //   if (match.currentQuestionIndex === TOTAL_QUESTIONS - 1) {
+        //     match.status = 'finished';
+        //   } else {
+        //     match.currentQuestionIndex += 1;
+        //     match.player1.hasAnswered = false;
+        //     match.player2.hasAnswered = false;
+        //   }
+        //   await match.save();
+        // }
+        final bothAnswered =
+            (match.player1?.hasAnswered ?? false) &&
+            (match.player2?.hasAnswered ?? false);
+
+        if (bothAnswered && match.status != 'finished') {
+          final isLastQuestion =
+              match.currentQuestionIndex >= _totalQuestions - 1;
+
+          if (isLastQuestion) {
+            // Mark match as finished – GameScreen / GameOver screen
+            // will react to this status change.
+            _firestoreService.updateMatch(match.matchId, {
+              'status': 'finished',
+            });
+          } else {
+            // Move to next question and reset answer flags
+            _firestoreService.updateMatch(match.matchId, {
+              'current_question_index': match.currentQuestionIndex + 1,
+              'player_1.has_answered': false,
+              'player_2.has_answered': false,
+            });
+          }
+        }
       },
       onError: (error) {
         // Handle stream errors
